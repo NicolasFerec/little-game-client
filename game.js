@@ -1,6 +1,6 @@
 $(document).ready(function() {
 
-	var socket = io('app-82a28a5b-cfcf-4454-a09b-d95fa822b8a4.cleverapps.io');
+	var socket = io('little-game-server.cleverapps.io');
 
 	socket.on('connect', function(data){
 		console.log('Welcome on board');
