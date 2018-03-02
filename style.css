@@ -1,0 +1,29 @@
+body{
+	
+}
+
+
+#game{
+	border: 1px solid #333;
+	position: relative;
+	width: 800px;
+	height: 800px;
+	margin: auto;
+}
+
+.player{
+	position: absolute;
+	background: #333;
+}
+
+.tile{
+	position: absolute;
+}
+
+.grass{
+	background: #69c62f;
+}
+
+.wall{
+	background: #515151;
+}
