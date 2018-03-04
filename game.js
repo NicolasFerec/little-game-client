@@ -1,92 +1,147 @@
-$(document).ready(function() {
+function Game(gameview) {
+	this.gameview = gameview;
+	this.ctx = gameview.getContext('2d');
+	this.tileWidth = 128;
+	this.tileHeight = 64;
+	this.init();
+}
 
-	var socket = io('little-game-server.cleverapps.io');
+Game.prototype.init = function(){
+	var that = this;
 
-	socket.on('connect', function(data){
-		console.log('Welcome on board');
+	this.socket = io('176.150.161.6:8000');
+
+	this.socket.emit('getMap');
+
+	this.socket.on('map', function(map){
+		that.setMap(map);
 	});
 
-	socket.on('map', function(data){
-		drawMap(data);
+	this.socket.on('players', function(players){
+		that.setPlayers(players);
 	});
 
-	socket.on('players', function(data){
-		drawPlayers(data);
-	});
+	this.loadImages();
 
-	var tileWidth = 0;
-	var tileHeight = 0;
+	document.onkeydown = function(e) {
+	    e = e || window.event;
+	    e.preventDefault();
+	    switch(e.which) {
+	        case 37:
+	        	that.moveLeft();
+	        	break;
+	        case 38:
+	        	that.moveUp();
+	        	break;
+	        case 39:
+	        	that.moveRight();
+	        	break;
+	        case 40:
+	        	that.moveDown();
+	        	break;
+	        default: return;
+	    }
+	};
 
-	var drawMap = function(map){
-		tileWidth = $('#game').width() / map[0].length;
-		tileHeight = $('#game').height() / map.length;
+	this.gameLoop = setInterval(function(){
+		that.socket.emit('getPlayers');
+		that.redrawWorld();
+	}, 33);
+}
 
-		$('#game').html('');
+Game.prototype.redrawWorld = function(){
+	if(this.grassImageLoaded && this.playerImageLoaded){
+		this.ctx.clearRect(0, 0, this.gameview.width, this.gameview.height);
+		this.drawMap();
+		this.drawPlayers();
+	}
+}
 
-		map.forEach(function(mapY, y){
-			mapY.forEach(function(mapX, x){
-				var type = '';
-				switch(mapX){
-					case 0:
-						type = 'wall';
-						break;
-					case 1:
-						type = 'grass';
-						break;
-				}
-				var tile = $('<div class="tile '+type+'" data-x="'+x+'" data-y="'+y+'"></div>');
-				tile.css({
-					top: y*tileHeight,
-					bottom: (y*tileHeight)+tileHeight,
-					left: x*tileWidth,
-					right: (x*tileHeight)+tileWidth,
-					width: tileWidth,
-					height: tileHeight
-				});
-				$('#game').append(tile);
-			})
-		});
+Game.prototype.setMap = function(map){
+	this.map = map;
+}
+
+Game.prototype.setPlayers = function(players){
+	this.players = players;
+}
+
+Game.prototype.loadImages = function(){
+	var that = this;
+
+	that.grassImageLoaded = false;
+	that.grass = new Image();
+	that.grass.src = 'grass.png';
+	that.grass.onload = function(){
+		that.grassImageLoaded = true;
 	}
 
-	var drawPlayers = function(players){
-		$('#game').find('.player').remove();
-
-		players.forEach(function(player){
-			var playerElem = $('<div class="player" id="'+player.id+'" data-x="'+player.x+'" data-y="'+player.y+'"></div>');
-			playerElem.css({
-				top: player.y*tileHeight,
-				bottom: (player.y*tileHeight)+tileHeight,
-				left: player.x*tileWidth,
-				right: (player.x*tileHeight)+tileWidth,
-				width: tileWidth,
-				height: tileHeight
-			});
-			$('#game').append(playerElem);
-		});
-
-		$('#logs').html('<p>'+JSON.stringify(players)+'</p>');
+	that.playerImageLoaded = false;
+	that.playerImage = new Image();
+	that.playerImage.src = 'player.png';
+	that.playerImage.onload = function(){
+		that.playerImageLoaded = true;
 	}
+}
 
-	$(document).on('keypress', function(e){
-		e.preventDefault();
-		switch(e.key){
-			case 'z':
-				socket.emit('moveUp');
-				break;
-			case 's':
-				socket.emit('moveDown');
-				break;
-			case 'q':
-				socket.emit('moveLeft');
-				break;
-			case 'd':
-				socket.emit('moveRight');
-				break;
+Game.prototype.drawMap = function(){
+	var that = this;
+
+	var posX = 0;
+	var posY = 0;
+
+	for (var y = 0 ; y < that.map.length; y++) {
+		var offsetX = 0;
+		if(y%2)
+			offsetX = that.tileWidth / 2;
+
+		for (var x = 0 ; x < that.map[y].length; x++) {
+			posX = (x * that.tileWidth) + offsetX;
+			posY = y * that.tileHeight / 2;
+
+			switch(that.map[y][x]){
+				case 0:
+					that.ctx.drawImage(that.grass, posX, posY, that.tileWidth, that.tileHeight);
+					that.ctx.fillText(x+', '+y, posX+(that.tileWidth/2-7), posY+(that.tileHeight/2+3));
+					break;
+			}
 		}
-	});
+	}
+}
 
-	$('#disconnect').click(function(){
-		socket.disconnect();
-	});
+Game.prototype.drawPlayers = function(){
+	var that = this;
 
-});
+	that.players.forEach(function(player){
+		
+		var offsetX = 0;
+		if(player.y%2)
+			offsetX = that.tileWidth / 2;
+
+		var posX = player.x*that.tileWidth+offsetX;
+		var posY = player.y*that.tileHeight / 2;
+		that.ctx.drawImage(that.playerImage, posX, posY, that.tileWidth, that.tileHeight);
+
+	});
+}
+
+Game.prototype.moveLeft = function(){
+	this.socket.emit('moveLeft');
+}
+
+Game.prototype.moveUp = function(){
+	this.socket.emit('moveUp');
+}
+
+Game.prototype.moveRight = function(){
+	this.socket.emit('moveRight');
+}
+
+Game.prototype.moveDown = function(){
+	this.socket.emit('moveDown');
+}
+
+
+
+
+
+
