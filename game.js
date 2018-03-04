@@ -9,7 +9,7 @@ function Game(gameview) {
 Game.prototype.init = function(){
 	var that = this;
 
-	this.socket = io('176.150.161.6:8000');
+	this.socket = io('little-game-server.cleverapps.io:8080');
 
 	this.socket.emit('getMap');
 
